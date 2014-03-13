@@ -1,0 +1,17 @@
+{
+  "uuid": "2d1acbe1-38bf-4161-a55a-159a1d9a2806",
+  "shortName": "Accelerdump",
+  "longName": "Accelerdump",
+  "companyName": "Whitney Industries",
+  "versionCode": 1,
+  "versionLabel": "2.0.0",
+  "watchapp": {
+    "watchface": false
+  },
+  "appKeys": {
+    "dummy": 0
+  },
+  "resources": {
+    "media": []
+  }
+}

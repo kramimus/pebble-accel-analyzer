@@ -27,3 +27,15 @@ proguard/
 *.ipr
 *.iws
 .idea/
+
+# emacs
+*~
+.#*
+\#*#
+
+
+# python
+*.py[cod]
+
+# c
+pebble_accel_dump/build
