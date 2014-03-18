@@ -129,7 +129,9 @@ public class DataPostService extends IntentService {
         if (mDataLogReceiver != null) {
             unregisterReceiver(mDataLogReceiver);
             mDataLogReceiver = null;
-            sendReadings();
+            if (latestAccel.size() > 0) {
+                sendReadings();
+            }
         }
         DataPostReceiver.completeWakefulIntent(intent);
     }
