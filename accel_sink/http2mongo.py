@@ -27,4 +27,4 @@ def collect_accel():
 
 if __name__ == '__main__':
     watch_data.accel_data.ensure_index('start_ts')
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, processes=2)

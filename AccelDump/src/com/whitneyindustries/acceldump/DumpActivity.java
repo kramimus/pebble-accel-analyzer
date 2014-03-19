@@ -38,10 +38,10 @@ public class DumpActivity extends Activity
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        if (alarmMgr != null) {
-            alarmMgr.cancel(alarmIntent);
-            alarmMgr = null;
-        }
+        //if (alarmMgr != null) {
+        //    alarmMgr.cancel(alarmIntent);
+        //    alarmMgr = null;
+        //}
         super.onSaveInstanceState(outState);
     }
 

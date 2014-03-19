@@ -19,13 +19,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class DataPostService extends IntentService {
     private static final String TAG = DataPostService.class.getSimpleName();
     private static final UUID APP_UUID = UUID.fromString("2d1acbe1-38bf-4161-a55a-159a1d9a2806");
     private static final String LOG_POST_HOST = "192.168.1.9";
 
-    private final HttpClient httpClient = AndroidHttpClient.newInstance("client");
+    private ExecutorService executor = Executors.newFixedThreadPool(2);
+
+    private AndroidHttpClient httpClient;
 
     private PebbleKit.PebbleDataLogReceiver mDataLogReceiver;
 
@@ -85,24 +91,28 @@ public class DataPostService extends IntentService {
         }
         final String byteString = readingsJson.toString();
 
-        new Thread(new Runnable() {
-                public void run() {
-                    HttpPost post = new HttpPost("http://" + LOG_POST_HOST + ":5000");
+        final HttpPost post = new HttpPost("http://" + LOG_POST_HOST + ":5000");
+        executor.submit(new Callable<Void>() {
+                public Void call() {
                     try {
                         post.setEntity(new StringEntity(byteString));
                         post.setHeader("Content-type", "application/json");
                         HttpResponse resp = httpClient.execute(post);
                         Log.i(TAG, "" + resp.getStatusLine());
                     } catch (Exception e) {
-                        Log.w(TAG, "Problem posting new data" + e);
+                        Log.w(TAG, "Problem posting new data " + e);
                     }
+                    return null;
                 }
-            }).start();
+            });
         latestAccel.clear();
     }
 
     protected void onHandleIntent(Intent intent) {
         // take reading byte array, deserialize into json, forward to web server
+        Log.i(TAG, "got alarm intent, starting logger");
+        httpClient = AndroidHttpClient.newInstance("accelpost");
+
         mDataLogReceiver = new PebbleKit.PebbleDataLogReceiver(APP_UUID) {
             @Override
             public void receiveData(Context context, UUID logUuid, UnsignedInteger timestamp, UnsignedInteger tag,
@@ -133,6 +143,11 @@ public class DataPostService extends IntentService {
                 sendReadings();
             }
         }
+        try {
+            executor.awaitTermination(60, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+        }
+        httpClient.close();
         DataPostReceiver.completeWakefulIntent(intent);
     }
 }
