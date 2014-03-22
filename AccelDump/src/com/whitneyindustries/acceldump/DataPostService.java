@@ -1,117 +1,39 @@
 package com.whitneyindustries.acceldump;
 
+import com.whitneyindustries.acceldump.model.AccelData;
+import com.whitneyindustries.acceldump.queue.DbBackedAccelQueue;
+import com.whitneyindustries.acceldump.queue.SendQueue;
+
 import android.app.IntentService;
 import android.content.Context;
 import android.content.Intent;
-import android.net.http.AndroidHttpClient;
+
 import android.util.Log;
 import com.getpebble.android.kit.PebbleKit;
 import com.google.common.primitives.UnsignedInteger;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.json.JSONException;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class DataPostService extends IntentService {
     private static final String TAG = DataPostService.class.getSimpleName();
     private static final UUID APP_UUID = UUID.fromString("2d1acbe1-38bf-4161-a55a-159a1d9a2806");
-    private static final String LOG_POST_HOST = "192.168.1.9";
-
-    private ExecutorService executor = Executors.newFixedThreadPool(2);
-
-    private AndroidHttpClient httpClient;
 
     private PebbleKit.PebbleDataLogReceiver mDataLogReceiver;
+    private SendQueue sender = new DbBackedAccelQueue();
 
-    private List<AccelData> latestAccel = new ArrayList<AccelData>();
-
-    private static class AccelData {
-        final private int x;
-        final private int y;
-        final private int z;
-
-        private long timestamp = 0;
-        final private boolean didVibrate;
-
-        public AccelData(byte[] data) {
-            x = (data[0] & 0xff) | (data[1] << 8);
-            y = (data[2] & 0xff) | (data[3] << 8);
-            z = (data[4] & 0xff) | (data[5] << 8);
-            didVibrate = data[6] != 0;
-
-            for (int i = 0; i < 8; i++) {
-                timestamp |= ((long)(data[i+7] & 0xff)) << (i * 8);
-            }
-        }
-
-        public JSONObject toJson() {
-            JSONObject json = new JSONObject();
-            try {
-                json.put("x", x);
-                json.put("y", y);
-                json.put("z", z);
-                json.put("ts", timestamp);
-                json.put("v", didVibrate);
-                return json;
-            } catch (JSONException e) {
-                Log.w(TAG, "problem constructing accel data, skipping " + e);
-            }
-            return null;
-        }
-
-        public static List<AccelData> fromDataArray(byte[] data) {
-            List<AccelData> accels = new ArrayList<AccelData>();
-            for (int i = 0; i < data.length; i += 15) {
-                accels.add(new AccelData(Arrays.copyOfRange(data, i, i + 15)));
-            }
-            return accels;
-        }
-    }
 
     public DataPostService() {
         super("DataPostService");
     }
 
-    private void sendReadings() {
-        JSONArray readingsJson = new JSONArray();
-        for (AccelData a : latestAccel) {
-            readingsJson.put(a.toJson());
-        }
-        final String byteString = readingsJson.toString();
-
-        final HttpPost post = new HttpPost("http://" + LOG_POST_HOST + ":5000");
-        executor.submit(new Callable<Void>() {
-                public Void call() {
-                    try {
-                        post.setEntity(new StringEntity(byteString));
-                        post.setHeader("Content-type", "application/json");
-                        HttpResponse resp = httpClient.execute(post);
-                        Log.i(TAG, "" + resp.getStatusLine());
-                    } catch (Exception e) {
-                        Log.w(TAG, "Problem posting new data " + e);
-                    }
-                    return null;
-                }
-            });
-        latestAccel.clear();
-    }
 
     protected void onHandleIntent(Intent intent) {
         // take reading byte array, deserialize into json, forward to web server
         Log.i(TAG, "got alarm intent, starting logger");
-        httpClient = AndroidHttpClient.newInstance("accelpost");
 
         mDataLogReceiver = new PebbleKit.PebbleDataLogReceiver(APP_UUID) {
             @Override
@@ -120,10 +42,8 @@ public class DataPostService extends IntentService {
                 if (data.length % 15 != 0 || data.length < 15) {
                     return;
                 }
-                List<AccelData> accel = AccelData.fromDataArray(data);
-                latestAccel.addAll(accel);
-                if (latestAccel.size() >= 1008) {
-                    sendReadings();
+                for (AccelData reading : AccelData.fromDataArray(data)) {
+                    sender.addNewReading(reading);
                 }
             }
         };
@@ -139,15 +59,9 @@ public class DataPostService extends IntentService {
         if (mDataLogReceiver != null) {
             unregisterReceiver(mDataLogReceiver);
             mDataLogReceiver = null;
-            if (latestAccel.size() > 0) {
-                sendReadings();
-            }
         }
-        try {
-            executor.awaitTermination(60, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-        }
-        httpClient.close();
+        sender.sendUnsent();
+
         DataPostReceiver.completeWakefulIntent(intent);
     }
 }
