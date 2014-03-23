@@ -17,11 +17,15 @@ public class JsonHttpClient {
     private static final String TAG = JsonHttpClient.class.getSimpleName();
     private static final String LOG_POST_HOST = "192.168.1.9";
 
-    private AndroidHttpClient httpClient;
+    private HttpClient httpClient;
     private ExecutorService executor = Executors.newFixedThreadPool(2);
 
     public JsonHttpClient() {
         httpClient = AndroidHttpClient.newInstance("accelpost");
+    }
+
+    void setHttpClient(HttpClient httpClient) {
+        this.httpClient = httpClient;
     }
 
     public Future<Boolean> post(final String body) {
@@ -33,11 +37,13 @@ public class JsonHttpClient {
                         post.setHeader("Content-type", "application/json");
                         HttpResponse resp = httpClient.execute(post);
                         Log.i(TAG, "" + resp.getStatusLine());
-                        return true;
+                        if (resp.getStatusLine().getStatusCode() < 400) {
+                            return true;
+                        }
                     } catch (Exception e) {
                         Log.w(TAG, "Problem posting new data " + e);
-                        return false;
                     }
+                    return false;
                 }
             });
     }
@@ -47,6 +53,10 @@ public class JsonHttpClient {
             executor.awaitTermination(60, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
         }
-        httpClient.close();
+        // ugly ugly, only way I can figure out how to use
+        // AndroidHttpClient and still mock the client for testing
+        if (httpClient instanceof AndroidHttpClient) {
+            ((AndroidHttpClient)httpClient).close();
+        }
     }
 }
