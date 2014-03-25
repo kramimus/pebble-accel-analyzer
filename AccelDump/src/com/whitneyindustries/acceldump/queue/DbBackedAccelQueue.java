@@ -53,10 +53,17 @@ public class DbBackedAccelQueue implements SendQueue {
         // TODO: read from db and re-send
     }
 
+    private void saveReadingToDb(String msg) {
+        // TODO: persist failed reading for now
+    }
+
     private void persistFailed() {
         for (Map.Entry<String, Future<Boolean>> pendingEntry : pending.entrySet()) {
             try {
-                pendingEntry.getValue().get(60, TimeUnit.SECONDS);
+                boolean success = pendingEntry.getValue().get(60, TimeUnit.SECONDS);
+                if (!success) {
+                    saveReadingToDb(pendingEntry.getKey());
+                }
             } catch (InterruptedException e) {
             } catch (Exception e) {
                 Log.e(TAG, "problem getting reading");
