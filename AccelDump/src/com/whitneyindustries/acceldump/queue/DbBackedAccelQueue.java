@@ -3,6 +3,7 @@ package com.whitneyindustries.acceldump.queue;
 import com.whitneyindustries.acceldump.model.AccelData;
 import com.whitneyindustries.acceldump.util.JsonHttpClient;
 
+import android.content.Context;
 import android.util.Log;
 import org.json.JSONArray;
 
@@ -23,34 +24,48 @@ public class DbBackedAccelQueue implements SendQueue {
 
     private JsonHttpClient httpClient;
 
+    public DbBackedAccelQueue(Context context) {
+    }
+
+    protected JsonHttpClient getHttpClient() {
+        return new JsonHttpClient();
+    }
+
+    @Override
     public void addNewReading(AccelData reading) {
         toSend.offer(reading);
     }
 
-    public void sendUnsent() {
-        httpClient = new JsonHttpClient();
-        if (toSend.size() >= 1008) {
-            sendReadings();
+    @Override
+    public int sendUnsent() {
+        httpClient = getHttpClient();
+        int readingsSent = 0;
+        while (toSend.size() >= 1008) {
+            readingsSent += sendReadings();
         }
-        sendOldReadings();
+        readingsSent += sendOldReadings();
         persistFailed();
         httpClient.shutdown();
+        return readingsSent;
     }
 
-    private void sendReadings() {
+    private int sendReadings() {
         JSONArray readingsJson = new JSONArray();
         AccelData a = toSend.poll();
-        while (a != null) {
+        int readingsSent;
+        for (readingsSent = 0; a != null; readingsSent++) {
             readingsJson.put(a.toJson());
             a = toSend.poll();
         }
         final String byteString = readingsJson.toString();
         Future<Boolean> result = httpClient.post(byteString);
         pending.put(byteString, result);
+        return readingsSent;
     }
 
-    private void sendOldReadings() {
+    private int sendOldReadings() {
         // TODO: read from db and re-send
+        return 0;
     }
 
     private void saveReadingToDb(String msg) {

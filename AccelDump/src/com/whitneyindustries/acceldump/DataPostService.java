@@ -23,7 +23,7 @@ public class DataPostService extends IntentService {
     private static final UUID APP_UUID = UUID.fromString("2d1acbe1-38bf-4161-a55a-159a1d9a2806");
 
     private PebbleKit.PebbleDataLogReceiver mDataLogReceiver;
-    private SendQueue sender = new DbBackedAccelQueue();
+    private SendQueue sender = new DbBackedAccelQueue(this);
 
 
     public DataPostService() {

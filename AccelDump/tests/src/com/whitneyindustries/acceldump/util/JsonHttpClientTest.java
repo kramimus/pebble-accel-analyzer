@@ -13,8 +13,7 @@ public class JsonHttpClientTest extends AndroidTestCase {
     }
 
     public void testPost() throws Exception {
-        JsonHttpClient httpClient = new JsonHttpClient();
-        httpClient.setHttpClient(client.getHttpClient());
+        JsonHttpClient httpClient = new JsonHttpClient(client.getHttpClient());
 
         client.setStatusCode(400);
         Future<Boolean> success = httpClient.post("test");

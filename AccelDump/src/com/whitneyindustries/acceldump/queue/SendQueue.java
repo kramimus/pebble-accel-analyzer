@@ -4,5 +4,5 @@ import com.whitneyindustries.acceldump.model.AccelData;
 
 public interface SendQueue {
     void addNewReading(AccelData reading);
-    void sendUnsent();
+    int sendUnsent();
 }

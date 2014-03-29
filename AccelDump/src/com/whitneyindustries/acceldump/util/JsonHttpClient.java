@@ -24,9 +24,10 @@ public class JsonHttpClient {
         httpClient = AndroidHttpClient.newInstance("accelpost");
     }
 
-    void setHttpClient(HttpClient httpClient) {
-        this.httpClient = httpClient;
+    public JsonHttpClient(HttpClient client) {
+        httpClient = client;
     }
+
 
     public Future<Boolean> post(final String body) {
         final HttpPost post = new HttpPost("http://" + LOG_POST_HOST + ":5000");
@@ -49,6 +50,7 @@ public class JsonHttpClient {
     }
 
     public void shutdown() {
+        executor.shutdown();
         try {
             executor.awaitTermination(60, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
