@@ -1,17 +1,24 @@
 package com.whitneyindustries.acceldump.queue;
 
+import com.whitneyindustries.acceldump.db.AccelDataContract.QueuedMessageEntry;
+import com.whitneyindustries.acceldump.db.AccelDataDbHelper;
 import com.whitneyindustries.acceldump.model.AccelData;
 import com.whitneyindustries.acceldump.util.JsonHttpClient;
 
 import android.content.Context;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
+import android.util.Pair;
+
 import org.json.JSONArray;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 
 /**
@@ -20,11 +27,14 @@ import java.util.Queue;
 public class DbBackedAccelQueue implements SendQueue {
     private static final String TAG = DbBackedAccelQueue.class.getSimpleName();
     private Queue<AccelData> toSend = new ConcurrentLinkedQueue<AccelData>();
-    private Map<String, Future<Boolean>> pending = new HashMap<String, Future<Boolean>>();
+    private Queue<Pair<String, Future<Boolean>>> pending = new ConcurrentLinkedQueue<Pair<String, Future<Boolean>>>();
 
     private JsonHttpClient httpClient;
+    private SQLiteDatabase db;
+
 
     public DbBackedAccelQueue(Context context) {
+        db = (new AccelDataDbHelper(context)).getWritableDatabase();
     }
 
     protected JsonHttpClient getHttpClient() {
@@ -39,50 +49,88 @@ public class DbBackedAccelQueue implements SendQueue {
     @Override
     public int sendUnsent() {
         httpClient = getHttpClient();
-        int readingsSent = 0;
+        int msgsSent = 0;
+        long now = System.currentTimeMillis();
         while (toSend.size() >= 1008) {
-            readingsSent += sendReadings();
+            msgsSent += sendReadings();
         }
-        readingsSent += sendOldReadings();
-        persistFailed();
+        msgsSent += sendOldReadings();
+        persistFailed(now);
         httpClient.shutdown();
-        return readingsSent;
+        return msgsSent;
     }
 
     private int sendReadings() {
         JSONArray readingsJson = new JSONArray();
         AccelData a = toSend.poll();
-        int readingsSent;
-        for (readingsSent = 0; a != null; readingsSent++) {
+        int msgsSent;
+        for (msgsSent = 0; a != null; msgsSent++) {
             readingsJson.put(a.toJson());
             a = toSend.poll();
         }
         final String byteString = readingsJson.toString();
         Future<Boolean> result = httpClient.post(byteString);
-        pending.put(byteString, result);
-        return readingsSent;
+        pending.offer(new Pair<String, Future<Boolean>>(byteString, result));
+        return 1;
     }
 
     private int sendOldReadings() {
-        // TODO: read from db and re-send
-        return 0;
+        String sortOrder = QueuedMessageEntry.COLUMN_NAME_GEN_TIME + " DESC";
+
+        int msgsSent = 0;
+        Cursor c = null;
+        try {
+            c = db.query(QueuedMessageEntry.TABLE_NAME,
+                         null,
+                         null,
+                         null,
+                         null,
+                         null,
+                         sortOrder);
+
+            for (msgsSent = 0; c.moveToNext(); msgsSent++) {
+                long id = c.getLong(c.getColumnIndexOrThrow(QueuedMessageEntry._ID));
+                String msg = c.getString(c.getColumnIndexOrThrow(QueuedMessageEntry.COLUMN_NAME_MESSAGE));
+                long genTime = c.getLong(c.getColumnIndexOrThrow(QueuedMessageEntry.COLUMN_NAME_GEN_TIME));
+
+                Future<Boolean> result = httpClient.post(msg);
+                pending.offer(new Pair<String, Future<Boolean>>(msg, result));
+
+                db.delete(QueuedMessageEntry.TABLE_NAME,
+                          QueuedMessageEntry._ID + " = ?",
+                          new String[] { id + "" });
+            }
+        } finally {
+            if (c != null) {
+                c.close();
+            }
+        }
+        return msgsSent;
     }
 
-    private void saveReadingToDb(String msg) {
-        // TODO: persist failed reading for now
+    private void saveReadingToDb(String msg, long genTime) {
+        ContentValues values = new ContentValues();
+        values.put(QueuedMessageEntry.COLUMN_NAME_GEN_TIME, genTime);
+        values.put(QueuedMessageEntry.COLUMN_NAME_MESSAGE, msg);
+        values.put(QueuedMessageEntry.COLUMN_NAME_RETRIES, 0);
+        db.insert(QueuedMessageEntry.TABLE_NAME, null, values);
     }
 
-    private void persistFailed() {
-        for (Map.Entry<String, Future<Boolean>> pendingEntry : pending.entrySet()) {
+    @Override
+    public void persistFailed(long now) {
+        Pair<String, Future<Boolean>> pendingEntry = pending.poll();
+        int i = 0;
+        while (pendingEntry != null) {
             try {
-                boolean success = pendingEntry.getValue().get(60, TimeUnit.SECONDS);
+                boolean success = pendingEntry.second.get(60, TimeUnit.SECONDS);
                 if (!success) {
-                    saveReadingToDb(pendingEntry.getKey());
+                    saveReadingToDb(pendingEntry.first, now);
                 }
             } catch (InterruptedException e) {
             } catch (Exception e) {
                 Log.e(TAG, "problem getting reading");
             }
+            pendingEntry = pending.poll();
         }
     }
 }
