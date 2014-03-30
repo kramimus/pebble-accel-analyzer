@@ -23,7 +23,7 @@ public class DataPostService extends IntentService {
     private static final UUID APP_UUID = UUID.fromString("2d1acbe1-38bf-4161-a55a-159a1d9a2806");
 
     private PebbleKit.PebbleDataLogReceiver mDataLogReceiver;
-    private SendQueue sender = new DbBackedAccelQueue(this);
+    private SendQueue sender;
 
 
     public DataPostService() {
@@ -34,6 +34,8 @@ public class DataPostService extends IntentService {
     protected void onHandleIntent(Intent intent) {
         // take reading byte array, deserialize into json, forward to web server
         Log.i(TAG, "got alarm intent, starting logger");
+
+        sender = new DbBackedAccelQueue(this);
 
         mDataLogReceiver = new PebbleKit.PebbleDataLogReceiver(APP_UUID) {
             @Override
@@ -60,7 +62,9 @@ public class DataPostService extends IntentService {
             unregisterReceiver(mDataLogReceiver);
             mDataLogReceiver = null;
         }
+        long now = System.currentTimeMillis();
         sender.sendUnsent();
+        sender.persistFailed(now);
 
         DataPostReceiver.completeWakefulIntent(intent);
     }

@@ -124,6 +124,7 @@ public class DbBackedAccelQueue implements SendQueue {
             try {
                 boolean success = pendingEntry.second.get(60, TimeUnit.SECONDS);
                 if (!success) {
+                    Log.d(TAG, "posting reading bundle failed, going to save to DB for later xmit");
                     saveReadingToDb(pendingEntry.first, now);
                 }
             } catch (InterruptedException e) {
