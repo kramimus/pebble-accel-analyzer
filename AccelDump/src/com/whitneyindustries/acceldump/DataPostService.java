@@ -34,8 +34,12 @@ public class DataPostService extends IntentService {
     protected void onHandleIntent(Intent intent) {
         // take reading byte array, deserialize into json, forward to web server
         Log.i(TAG, "got alarm intent, starting logger");
+        String ip = intent.getStringExtra("server_ip");
+        if (ip == null) {
+            ip = "127.0.0.1";
+        }
 
-        sender = new DbBackedAccelQueue(this);
+        sender = new DbBackedAccelQueue(ip, this);
 
         mDataLogReceiver = new PebbleKit.PebbleDataLogReceiver(APP_UUID) {
             @Override

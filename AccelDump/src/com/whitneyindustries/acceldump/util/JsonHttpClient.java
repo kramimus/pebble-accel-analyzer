@@ -14,8 +14,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class JsonHttpClient {
-    private static final String TAG = JsonHttpClient.class.getSimpleName();
-    private static final String LOG_POST_HOST = "192.168.1.9";
+    final private static String TAG = JsonHttpClient.class.getSimpleName();
 
     private HttpClient httpClient;
     private ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -29,8 +28,8 @@ public class JsonHttpClient {
     }
 
 
-    public Future<Boolean> post(final String body) {
-        final HttpPost post = new HttpPost("http://" + LOG_POST_HOST + ":5000");
+    public Future<Boolean> post(final String ip, final String body) {
+        final HttpPost post = new HttpPost("http://" + ip + ":5000");
         return executor.submit(new Callable<Boolean>() {
                 public Boolean call() {
                     try {

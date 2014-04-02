@@ -29,9 +29,11 @@ public class DumpActivity extends Activity
 
     private OnClickListener mIpSaveListener = new OnClickListener() {
             public void onClick(View v) {
+                String ip = mIpField.getText().toString();
                 SharedPreferences.Editor editor = getPreferences(Context.MODE_PRIVATE).edit();
-                editor.putString(getString(R.string.server_ip), mIpField.getText().toString());
+                editor.putString(getString(R.string.server_ip), ip);
                 editor.commit();
+                updatePendingIntent(ip);
             }
         };
 
@@ -47,16 +49,9 @@ public class DumpActivity extends Activity
         mIpSave = (Button)findViewById(R.id.ip_save);
         mIpSave.setOnClickListener(mIpSaveListener);
 
-
-        alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(this, DataPostReceiver.class);
-        alarmIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
-
-        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                                     10000,
-                                     AlarmManager.INTERVAL_FIFTEEN_MINUTES,
-                                     alarmIntent);
+        updatePendingIntent(ip);
     }
+
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
@@ -67,6 +62,17 @@ public class DumpActivity extends Activity
         super.onSaveInstanceState(outState);
     }
 
+    private void updatePendingIntent(String ip) {
+        alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(this, DataPostReceiver.class);
+        intent.putExtra("server_ip", ip);
+        alarmIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        alarmMgr.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                                     10000,
+                                     AlarmManager.INTERVAL_FIFTEEN_MINUTES,
+                                     alarmIntent);
+    }
 
     private void updateUi() {
         TextView textView = (TextView) findViewById(R.id.log_data_text_view);

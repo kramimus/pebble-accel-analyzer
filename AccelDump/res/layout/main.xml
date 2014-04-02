@@ -7,9 +7,9 @@
                 android:orientation="horizontal"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content">
-    <EditView
+    <EditText
         android:id="@+id/ip_field"
-        android:layout_width="fill_parent"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"/>
     <Button
         android:id="@+id/ip_save"

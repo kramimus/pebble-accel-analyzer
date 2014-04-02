@@ -25,7 +25,9 @@ import java.util.Queue;
  * Please forgive me for implementing yet another reliable messaging queue
  */
 public class DbBackedAccelQueue implements SendQueue {
-    private static final String TAG = DbBackedAccelQueue.class.getSimpleName();
+    final private static String TAG = DbBackedAccelQueue.class.getSimpleName();
+    final private String ip;
+
     private Queue<AccelData> toSend = new ConcurrentLinkedQueue<AccelData>();
     private Queue<Pair<String, Future<Boolean>>> pending = new ConcurrentLinkedQueue<Pair<String, Future<Boolean>>>();
 
@@ -33,8 +35,9 @@ public class DbBackedAccelQueue implements SendQueue {
     private SQLiteDatabase db;
 
 
-    public DbBackedAccelQueue(Context context) {
+    public DbBackedAccelQueue(String ip, Context context) {
         db = (new AccelDataDbHelper(context)).getWritableDatabase();
+        this.ip = ip;
     }
 
     protected JsonHttpClient getHttpClient() {
@@ -69,7 +72,7 @@ public class DbBackedAccelQueue implements SendQueue {
             a = toSend.poll();
         }
         final String byteString = readingsJson.toString();
-        Future<Boolean> result = httpClient.post(byteString);
+        Future<Boolean> result = httpClient.post(ip, byteString);
         pending.offer(new Pair<String, Future<Boolean>>(byteString, result));
         return 1;
     }
@@ -93,7 +96,7 @@ public class DbBackedAccelQueue implements SendQueue {
                 String msg = c.getString(c.getColumnIndexOrThrow(QueuedMessageEntry.COLUMN_NAME_MESSAGE));
                 long genTime = c.getLong(c.getColumnIndexOrThrow(QueuedMessageEntry.COLUMN_NAME_GEN_TIME));
 
-                Future<Boolean> result = httpClient.post(msg);
+                Future<Boolean> result = httpClient.post(ip, msg);
                 pending.offer(new Pair<String, Future<Boolean>>(msg, result));
 
                 db.delete(QueuedMessageEntry.TABLE_NAME,
