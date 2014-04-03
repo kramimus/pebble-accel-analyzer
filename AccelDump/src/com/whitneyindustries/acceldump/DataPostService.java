@@ -21,9 +21,11 @@ import java.util.concurrent.TimeUnit;
 public class DataPostService extends IntentService {
     private static final String TAG = DataPostService.class.getSimpleName();
     private static final UUID APP_UUID = UUID.fromString("2d1acbe1-38bf-4161-a55a-159a1d9a2806");
+    public static final String UPDATE_COUNT_INTENT = "update_count";
 
     private PebbleKit.PebbleDataLogReceiver mDataLogReceiver;
     private SendQueue sender;
+    private AtomicLong readingsReceived = 0;
 
 
     public DataPostService() {
@@ -50,6 +52,7 @@ public class DataPostService extends IntentService {
                 }
                 for (AccelData reading : AccelData.fromDataArray(data)) {
                     sender.addNewReading(reading);
+                    readingsReceived.incrementAndGet();
                 }
             }
         };
@@ -69,6 +72,14 @@ public class DataPostService extends IntentService {
         long now = System.currentTimeMillis();
         sender.sendUnsent();
         sender.persistFailed(now);
+
+        SharedPreferences prefs = getDefaultSharedPreferences(this);
+        long totalCount = readingsReceived.longValue() + prefs.getLong("reading_count", 0);
+        prefs.edit().putLong("reading_count", totalCount).commit();
+
+        Intent countIntent = new Intent(UPDATE_COUNT_INTENT);
+        countIntent.putExtra("reading_count", totalCount);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(countIntent);
 
         DataPostReceiver.completeWakefulIntent(intent);
     }

@@ -12,9 +12,9 @@ public class DataPostReceiver extends WakefulBroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         Log.i(TAG, "received alarm wakeup " + System.currentTimeMillis());
-        String ip = intent.getStringExtra("server_ip");
         Intent service = new Intent(context, DataPostService.class);
-        service.putExtra("server_ip", ip);
+        // forward IP string to next intent
+        service.putExtras(intent);
 
         startWakefulService(context, service);
     }
