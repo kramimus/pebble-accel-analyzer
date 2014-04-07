@@ -51,6 +51,12 @@ static void click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_DOWN, down_click_handler);
 }
 
+static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
+    char time_formatted[6];
+    snprintf(time_formatted, 6, "%02d:%02d", tick_time->tm_hour, tick_time->tm_min);
+    text_layer_set_text(text_layer, time_formatted);
+}
+
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
@@ -75,6 +81,7 @@ static void init(void) {
   });
   const bool animated = true;
   window_stack_push(window, animated);
+  tick_timer_service_subscribe(MINUTE_UNIT, &handle_tick);
   accel_data_service_subscribe(SAMPLE_BATCH, &accel_data_handler);
   accel_service_set_sampling_rate(ACCEL_SAMPLING_10HZ);
   init_dlog();
@@ -83,6 +90,7 @@ static void init(void) {
 static void deinit(void) {
   data_logging_finish(accel_log);
   accel_data_service_unsubscribe();
+  tick_timer_service_unsubscribe();
   window_destroy(window);
 }
 
