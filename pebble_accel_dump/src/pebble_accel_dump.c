@@ -18,6 +18,7 @@ typedef struct {
 } AccelDataAvg;
 
 AccelDataAvg current_avg;
+char time_formatted[6];
 
 void init_dlog(void) {
    accel_log = data_logging_create(
@@ -52,7 +53,6 @@ static void click_config_provider(void *context) {
 }
 
 static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
-    char time_formatted[6];
     snprintf(time_formatted, 6, "%02d:%02d", tick_time->tm_hour, tick_time->tm_min);
     text_layer_set_text(text_layer, time_formatted);
 }
@@ -61,8 +61,8 @@ static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
-  text_layer = text_layer_create((GRect) { .origin = { 0, 72 }, .size = { bounds.size.w, 20 } });
-  text_layer_set_text(text_layer, "Press a button");
+  text_layer = text_layer_create((GRect) { .origin = { 0, 62 }, .size = { bounds.size.w, 40 } });
+  text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK));
 
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(text_layer));
