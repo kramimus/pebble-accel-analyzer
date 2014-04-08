@@ -7,6 +7,9 @@ import com.whitneyindustries.acceldump.queue.SendQueue;
 import android.app.IntentService;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
+import android.support.v4.content.LocalBroadcastManager;
 
 import android.util.Log;
 import com.getpebble.android.kit.PebbleKit;
@@ -15,6 +18,7 @@ import com.google.common.primitives.UnsignedInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -25,7 +29,7 @@ public class DataPostService extends IntentService {
 
     private PebbleKit.PebbleDataLogReceiver mDataLogReceiver;
     private SendQueue sender;
-    private AtomicLong readingsReceived = 0;
+    private AtomicLong readingsReceived = new AtomicLong();
 
 
     public DataPostService() {
@@ -73,7 +77,7 @@ public class DataPostService extends IntentService {
         sender.sendUnsent();
         sender.persistFailed(now);
 
-        SharedPreferences prefs = getDefaultSharedPreferences(this);
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         long totalCount = readingsReceived.longValue() + prefs.getLong("reading_count", 0);
         prefs.edit().putLong("reading_count", totalCount).commit();
 
