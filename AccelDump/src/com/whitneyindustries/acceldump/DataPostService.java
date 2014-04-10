@@ -77,6 +77,7 @@ public class DataPostService extends IntentService {
         sender.sendUnsent();
         sender.persistFailed(now);
 
+        Log.i(TAG, readingsReceived.longValue() + " reading received in session");
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         long totalCount = readingsReceived.longValue() + prefs.getLong("reading_count", 0);
         prefs.edit().putLong("reading_count", totalCount).commit();
