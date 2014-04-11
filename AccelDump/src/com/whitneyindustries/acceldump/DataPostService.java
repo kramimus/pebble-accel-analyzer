@@ -30,7 +30,8 @@ public class DataPostService extends IntentService {
     private PebbleKit.PebbleDataLogReceiver mDataLogReceiver;
     private SendQueue sender;
     private AtomicLong readingsReceived = new AtomicLong();
-
+    private long minTs = 0;
+    private long maxTs = 0;
 
     public DataPostService() {
         super("DataPostService");
@@ -56,6 +57,12 @@ public class DataPostService extends IntentService {
                 }
                 for (AccelData reading : AccelData.fromDataArray(data)) {
                     sender.addNewReading(reading);
+                    if (reading.getTimestamp() > maxTs) {
+                        maxTs = reading.getTimestamp();
+                    }
+                    if (reading.getTimestamp() < minTs || minTs == 0) {
+                        minTs = reading.getTimestamp();
+                    }
                     readingsReceived.incrementAndGet();
                 }
             }
@@ -77,7 +84,7 @@ public class DataPostService extends IntentService {
         sender.sendUnsent();
         sender.persistFailed(now);
 
-        Log.i(TAG, readingsReceived.longValue() + " reading received in session");
+        Log.i(TAG, readingsReceived.longValue() + " readings received in session, between times " + minTs + " " + maxTs);
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         long totalCount = readingsReceived.longValue() + prefs.getLong("reading_count", 0);
         prefs.edit().putLong("reading_count", totalCount).commit();

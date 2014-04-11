@@ -51,4 +51,8 @@ public class AccelData {
         }
         return accels;
     }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
 }
