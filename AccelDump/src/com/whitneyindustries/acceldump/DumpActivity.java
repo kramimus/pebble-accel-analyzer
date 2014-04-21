@@ -26,6 +26,7 @@ public class DumpActivity extends Activity
     private PendingIntent alarmIntent;
     private EditText mIpField;
     private Button mIpSave;
+    private Button mSyncNow;
 
     private OnClickListener mIpSaveListener = new OnClickListener() {
             public void onClick(View v) {
@@ -34,6 +35,15 @@ public class DumpActivity extends Activity
                 editor.putString(getString(R.string.server_ip), ip);
                 editor.commit();
                 updatePendingIntent(ip);
+            }
+        };
+
+    private OnClickListener mSyncListener = new OnClickListener() {
+            public void onClick(View v) {
+                String ip = mIpField.getText().toString();
+                Intent intent = new Intent(DumpActivity.this, DataPostService.class);
+                intent.putExtra("server_ip", ip);
+                startService(intent);
             }
         };
 
@@ -50,6 +60,9 @@ public class DumpActivity extends Activity
         mIpSave.setOnClickListener(mIpSaveListener);
 
         updatePendingIntent(ip);
+
+        mSyncNow = (Button)findViewById(R.id.sync_now);
+        mSyncNow.setOnClickListener(mSyncListener);
     }
 
 

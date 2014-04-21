@@ -9,7 +9,7 @@ public class MockDbBackedAccelQueue extends DbBackedAccelQueue {
     private HttpClient mockClient;
 
     public MockDbBackedAccelQueue(Context context, HttpClient client) {
-        super(context);
+        super("127.0.0.1", context);
         mockClient = client;
     }
 

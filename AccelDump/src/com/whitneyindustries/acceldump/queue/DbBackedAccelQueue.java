@@ -26,6 +26,9 @@ import java.util.Queue;
  */
 public class DbBackedAccelQueue implements SendQueue {
     final private static String TAG = DbBackedAccelQueue.class.getSimpleName();
+    final private static int READINGS_PER_MSG = 252;
+    final private static int MSGS_FROM_DB = 100;
+
     final private String ip;
 
     private Queue<AccelData> toSend = new ConcurrentLinkedQueue<AccelData>();
@@ -54,7 +57,7 @@ public class DbBackedAccelQueue implements SendQueue {
         httpClient = getHttpClient();
         int msgsSent = 0;
         long now = System.currentTimeMillis();
-        while (toSend.size() >= 1008) {
+        while (toSend.size() >= READINGS_PER_MSG) {
             msgsSent += sendReadings();
         }
         msgsSent += sendOldReadings();
@@ -66,8 +69,10 @@ public class DbBackedAccelQueue implements SendQueue {
     private int sendReadings() {
         JSONArray readingsJson = new JSONArray();
         AccelData a = toSend.poll();
-        int msgsSent;
-        for (msgsSent = 0; a != null; msgsSent++) {
+        int readingsSent;
+        // msgs should not be too big, otherwise we will hit Android
+        // CursorWindow issues if they hit the db
+        for (readingsSent = 0; a != null && readingsSent < READINGS_PER_MSG; readingsSent++) {
             readingsJson.put(a.toJson());
             a = toSend.poll();
         }
@@ -89,7 +94,8 @@ public class DbBackedAccelQueue implements SendQueue {
                          null,
                          null,
                          null,
-                         sortOrder);
+                         sortOrder,
+                         "" + MSGS_FROM_DB);
 
             for (msgsSent = 0; c.moveToNext(); msgsSent++) {
                 long id = c.getLong(c.getColumnIndexOrThrow(QueuedMessageEntry._ID));
@@ -132,7 +138,7 @@ public class DbBackedAccelQueue implements SendQueue {
                 }
             } catch (InterruptedException e) {
             } catch (Exception e) {
-                Log.e(TAG, "problem getting reading");
+                Log.e(TAG, "problem getting reading", e);
             }
             pendingEntry = pending.poll();
         }
