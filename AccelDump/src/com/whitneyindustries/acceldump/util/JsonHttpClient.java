@@ -19,6 +19,7 @@ public class JsonHttpClient {
 
     private HttpClient httpClient;
     private ExecutorService executor = Executors.newFixedThreadPool(2);
+    private AtomicLong packets = new AtomicLong();
     private AtomicLong packetsSent = new AtomicLong();
     private AtomicLong packetsInError = new AtomicLong();
 
@@ -36,10 +37,14 @@ public class JsonHttpClient {
         return executor.submit(new Callable<Boolean>() {
                 public Boolean call() {
                     try {
+                        long packetNum = packets.longValue();
+                        Log.d(TAG, "send start " + packetNum + " at " + System.currentTimeMillis());
+                        packets.incrementAndGet();
                         post.setEntity(new StringEntity(body));
                         post.setHeader("Content-type", "application/json");
                         HttpResponse resp = httpClient.execute(post);
                         Log.i(TAG, "" + resp.getStatusLine());
+                        Log.d(TAG, "send end " + packetNum + " at " + System.currentTimeMillis());
                         if (resp.getStatusLine().getStatusCode() < 400) {
                             packetsSent.incrementAndGet();
                             return true;
@@ -59,7 +64,7 @@ public class JsonHttpClient {
             executor.awaitTermination(60, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
         }
-        Log.i(TAG, "HTTP client sent " + packetsSent.longValue() + " packets, " + packetsInError + " errors, shutting down client now");
+        Log.i(TAG, "HTTP client sent " + packetsSent.longValue() + " packets, " + packetsInError.longValue() + " errors, shutting down client now");
         // ugly ugly, only way I can figure out how to use
         // AndroidHttpClient and still mock the client for testing
         if (httpClient instanceof AndroidHttpClient) {

@@ -36,7 +36,7 @@ public class DbBackedAccelQueueTest extends AndroidTestCase {
         for (int i = 0; i < 1007; i++) {
             queue.addNewReading(data);
         }
-        assertEquals(4, queue.sendUnsent());
+        assertEquals(1, queue.sendUnsent());
     }
 
     public void testSaveToDbOnFail() throws Exception {
@@ -46,10 +46,10 @@ public class DbBackedAccelQueueTest extends AndroidTestCase {
         for (int i = 0; i < 1008; i++) {
             queue.addNewReading(data);
         }
-        assertEquals(4, queue.sendUnsent());
+        assertEquals(1, queue.sendUnsent());
         queue.persistFailed(now);
         mockClient.setStatusCode(200);
-        assertEquals(4, queue.sendUnsent());
+        assertEquals(1, queue.sendUnsent());
     }
 
 }

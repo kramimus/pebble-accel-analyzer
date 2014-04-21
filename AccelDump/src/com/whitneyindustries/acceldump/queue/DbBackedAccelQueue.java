@@ -26,8 +26,9 @@ import java.util.Queue;
  */
 public class DbBackedAccelQueue implements SendQueue {
     final private static String TAG = DbBackedAccelQueue.class.getSimpleName();
-    final private static int READINGS_PER_MSG = 252;
+    final private static int READINGS_PER_MSG = 1008;
     final private static int MSGS_FROM_DB = 100;
+    final private static boolean SYNCHRONIZE_POSTS = true;
 
     final private String ip;
 
@@ -57,7 +58,7 @@ public class DbBackedAccelQueue implements SendQueue {
         httpClient = getHttpClient();
         int msgsSent = 0;
         long now = System.currentTimeMillis();
-        while (toSend.size() >= READINGS_PER_MSG) {
+        while (!toSend.isEmpty()) {
             msgsSent += sendReadings();
         }
         msgsSent += sendOldReadings();
@@ -77,7 +78,15 @@ public class DbBackedAccelQueue implements SendQueue {
             a = toSend.poll();
         }
         final String byteString = readingsJson.toString();
+        Log.d(TAG, "Sending message with " + readingsSent + " readings");
         Future<Boolean> result = httpClient.post(ip, byteString);
+        if (SYNCHRONIZE_POSTS) {
+            try {
+                result.get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                Log.e(TAG, "problem getting reading", e);
+            }
+        }
         pending.offer(new Pair<String, Future<Boolean>>(byteString, result));
         return 1;
     }
