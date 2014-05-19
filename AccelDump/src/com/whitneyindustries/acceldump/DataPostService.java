@@ -17,6 +17,7 @@ import com.google.common.primitives.UnsignedInteger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.Callable;
@@ -45,6 +46,8 @@ public class DataPostService extends IntentService {
         if (ip == null) {
             ip = "127.0.0.1";
         }
+        String tzName = intent.getStringExtra("tz");
+        final TimeZone tz = TimeZone.getTimeZone(tzName);
 
         sender = new DbBackedAccelQueue(ip, this);
 
@@ -56,7 +59,9 @@ public class DataPostService extends IntentService {
                     return;
                 }
                 for (AccelData reading : AccelData.fromDataArray(data)) {
+                    reading.applyTimezone(tz);
                     sender.addNewReading(reading);
+                    //Log.i(TAG, "reading ts " + reading.getTimestamp());
                     if (reading.getTimestamp() > maxTs) {
                         maxTs = reading.getTimestamp();
                     }
@@ -82,7 +87,6 @@ public class DataPostService extends IntentService {
         }
         long now = System.currentTimeMillis();
         sender.sendUnsent();
-        sender.persistFailed(now);
 
         Log.i(TAG, readingsReceived.longValue() + " readings received in session, between times " + minTs + " " + maxTs);
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);

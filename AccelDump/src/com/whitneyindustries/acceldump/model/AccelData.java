@@ -7,6 +7,7 @@ import org.json.JSONException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.TimeZone;
 
 public class AccelData {
     private static final String TAG = AccelData.class.getSimpleName();
@@ -54,5 +55,9 @@ public class AccelData {
 
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public void applyTimezone(TimeZone tz) {
+        timestamp -= tz.getOffset(timestamp);
     }
 }

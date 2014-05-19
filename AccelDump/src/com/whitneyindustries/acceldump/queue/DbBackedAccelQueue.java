@@ -55,16 +55,24 @@ public class DbBackedAccelQueue implements SendQueue {
 
     @Override
     public int sendUnsent() {
-        httpClient = getHttpClient();
-        int msgsSent = 0;
-        long now = System.currentTimeMillis();
-        while (!toSend.isEmpty()) {
-            msgsSent += sendReadings();
+        SQLiteDatabase db = null;
+        try {
+            db = (new AccelDataDbHelper(context)).getWritableDatabase();
+            httpClient = getHttpClient();
+            int msgsSent = 0;
+            long now = System.currentTimeMillis();
+            while (!toSend.isEmpty()) {
+                msgsSent += sendReadings(db);
+            }
+            msgsSent += sendOldReadings(db);
+            persistFailed(now, db);
+            httpClient.shutdown();
+            return msgsSent;
+        } finally {
+            if (db != null) {
+                db.close();
+            }
         }
-        msgsSent += sendOldReadings();
-        persistFailed(now);
-        httpClient.shutdown();
-        return msgsSent;
     }
 
     private int sendReadings() {
@@ -73,9 +81,11 @@ public class DbBackedAccelQueue implements SendQueue {
         int readingsSent;
         // msgs should not be too big, otherwise we will hit Android
         // CursorWindow issues if they hit the db
+        int readCount = 0;
         for (readingsSent = 0; a != null && readingsSent < READINGS_PER_MSG; readingsSent++) {
             readingsJson.put(a.toJson());
             a = toSend.poll();
+            readCount++;
         }
         final String byteString = readingsJson.toString();
         Log.d(TAG, "Sending message with " + readingsSent + " readings");
@@ -97,6 +107,7 @@ public class DbBackedAccelQueue implements SendQueue {
         int msgsSent = 0;
         Cursor c = null;
         try {
+            db = (new AccelDataDbHelper(context)).getWritableDatabase();
             c = db.query(QueuedMessageEntry.TABLE_NAME,
                          null,
                          null,
@@ -126,7 +137,7 @@ public class DbBackedAccelQueue implements SendQueue {
         return msgsSent;
     }
 
-    private void saveReadingToDb(String msg, long genTime) {
+    private void saveReadingToDb(String msg, long genTime, SQLiteDatabase db) {
         ContentValues values = new ContentValues();
         values.put(QueuedMessageEntry.COLUMN_NAME_GEN_TIME, genTime);
         values.put(QueuedMessageEntry.COLUMN_NAME_MESSAGE, msg);
@@ -135,7 +146,7 @@ public class DbBackedAccelQueue implements SendQueue {
     }
 
     @Override
-    public void persistFailed(long now) {
+    public void persistFailed(long now, SQLiteDatabase db) {
         Pair<String, Future<Boolean>> pendingEntry = pending.poll();
         int i = 0;
         while (pendingEntry != null) {
@@ -143,7 +154,7 @@ public class DbBackedAccelQueue implements SendQueue {
                 boolean success = pendingEntry.second.get(60, TimeUnit.SECONDS);
                 if (!success) {
                     Log.d(TAG, "posting reading bundle failed, going to save to DB for later xmit");
-                    saveReadingToDb(pendingEntry.first, now);
+                    saveReadingToDb(pendingEntry.first, now, db);
                 }
             } catch (InterruptedException e) {
             } catch (Exception e) {

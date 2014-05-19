@@ -17,15 +17,18 @@
         android:layout_height="wrap_content"
         android:text="Set IP"/>
   </LinearLayout>
-    <Button
-        android:id="@+id/sync_now"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Sync Readings"/>
-<TextView
-    android:id="@+id/log_data_text_view"
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content"
-    />
+  <Button
+      android:id="@+id/sync_now"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Sync Readings"/>
+  <Spinner
+      android:id="@+id/tz_selector"
+      android:layout_width="fill_parent"
+      android:layout_height="wrap_content"/>
+  <TextView
+      android:id="@+id/log_data_text_view"
+      android:layout_width="fill_parent"
+      android:layout_height="wrap_content"/>
 </LinearLayout>
 

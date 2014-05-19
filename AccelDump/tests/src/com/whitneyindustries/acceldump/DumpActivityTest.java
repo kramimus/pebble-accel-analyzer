@@ -1,6 +1,7 @@
 package com.whitneyindustries.acceldump;
 
 import android.test.ActivityInstrumentationTestCase2;
+import android.widget.Spinner;
 
 /**
  * This is a simple framework for a test of an Application.  See
@@ -16,6 +17,15 @@ public class DumpActivityTest extends ActivityInstrumentationTestCase2<DumpActiv
 
     public DumpActivityTest() {
         super("com.whitneyindustries.acceldump", DumpActivity.class);
+    }
+
+    public void testTzSelect() {
+        final Spinner tzSelector = (Spinner)getActivity().findViewById(R.id.tz_selector);
+        getActivity().runOnUiThread(new Runnable() {
+                public void run() {
+                    tzSelector.requestFocus();
+                }
+            });
     }
 
 }

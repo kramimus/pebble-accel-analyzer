@@ -2,4 +2,14 @@
 <resources>
     <string name="app_name">DumpActivity</string>
     <string name="server_ip">server_ip</string>
+    <string name="tz">tz</string>
+
+    <string-array name="tz_array">
+        <item>America/Los_Angeles</item>
+        <item>America/Denver</item>
+        <item>America/Chicago</item>
+        <item>America/New_York</item>
+        <item>GMT</item>
+    </string-array>
 </resources>
+
