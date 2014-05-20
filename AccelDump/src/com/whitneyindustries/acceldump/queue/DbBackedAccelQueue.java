@@ -1,6 +1,7 @@
 package com.whitneyindustries.acceldump.queue;
 
 import com.whitneyindustries.acceldump.db.AccelDataContract.QueuedMessageEntry;
+import com.whitneyindustries.acceldump.db.AccelDataContract.ConnectionLogEntry;
 import com.whitneyindustries.acceldump.db.AccelDataDbHelper;
 import com.whitneyindustries.acceldump.model.AccelData;
 import com.whitneyindustries.acceldump.util.JsonHttpClient;
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Queue;
 
@@ -36,12 +38,11 @@ public class DbBackedAccelQueue implements SendQueue {
     private Queue<Pair<String, Future<Boolean>>> pending = new ConcurrentLinkedQueue<Pair<String, Future<Boolean>>>();
 
     private JsonHttpClient httpClient;
-    private SQLiteDatabase db;
-
+    private Context context;
 
     public DbBackedAccelQueue(String ip, Context context) {
-        db = (new AccelDataDbHelper(context)).getWritableDatabase();
         this.ip = ip;
+        this.context = context;
     }
 
     protected JsonHttpClient getHttpClient() {
@@ -75,7 +76,7 @@ public class DbBackedAccelQueue implements SendQueue {
         }
     }
 
-    private int sendReadings() {
+    private int sendReadings(SQLiteDatabase db) {
         JSONArray readingsJson = new JSONArray();
         AccelData a = toSend.poll();
         int readingsSent;
@@ -89,10 +90,12 @@ public class DbBackedAccelQueue implements SendQueue {
         }
         final String byteString = readingsJson.toString();
         Log.d(TAG, "Sending message with " + readingsSent + " readings");
+        Date requestTime = new Date();
         Future<Boolean> result = httpClient.post(ip, byteString);
         if (SYNCHRONIZE_POSTS) {
             try {
-                result.get(10, TimeUnit.SECONDS);
+                boolean success = result.get(10, TimeUnit.SECONDS);
+                insertLog(requestTime, success, readCount, db);
             } catch (Exception e) {
                 Log.e(TAG, "problem getting reading", e);
             }
@@ -101,7 +104,22 @@ public class DbBackedAccelQueue implements SendQueue {
         return 1;
     }
 
-    private int sendOldReadings() {
+    private void insertLog(Date requestTime, boolean success, int readingCount, SQLiteDatabase db) {
+        ContentValues values = new ContentValues();
+        values.put(ConnectionLogEntry.COLUMN_NAME_CONN_TIME, requestTime.getTime());
+        values.put(ConnectionLogEntry.COLUMN_NAME_SUCCESS, success);
+        values.put(ConnectionLogEntry.COLUMN_NAME_READING_COUNT, readingCount);
+        db.insert(ConnectionLogEntry.TABLE_NAME, null, values);
+    }
+
+    private void deleteOldLogs(long currentTime, SQLiteDatabase db) {
+        long deleteTime = currentTime - 8 * 60 * 60 * 1000;
+        db.delete(ConnectionLogEntry.TABLE_NAME,
+                  ConnectionLogEntry.COLUMN_NAME_CONN_TIME + "<?",
+                  new String[] {deleteTime + ""});
+    }
+
+    private int sendOldReadings(SQLiteDatabase db) {
         String sortOrder = QueuedMessageEntry.COLUMN_NAME_GEN_TIME + " DESC";
 
         int msgsSent = 0;
@@ -162,6 +180,7 @@ public class DbBackedAccelQueue implements SendQueue {
             }
             pendingEntry = pending.poll();
         }
+        deleteOldLogs(now, db);
     }
 }
 

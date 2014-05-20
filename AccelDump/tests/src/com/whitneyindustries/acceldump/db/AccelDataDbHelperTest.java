@@ -7,6 +7,7 @@ import android.test.AndroidTestCase;
 import android.test.RenamingDelegatingContext;
 
 import com.whitneyindustries.acceldump.db.AccelDataContract.QueuedMessageEntry;
+import com.whitneyindustries.acceldump.db.AccelDataContract.ConnectionLogEntry;
 
 public class AccelDataDbHelperTest extends AndroidTestCase {
     private static final String TEST_FILE_PREFIX = "test_";
@@ -38,6 +39,21 @@ public class AccelDataDbHelperTest extends AndroidTestCase {
         c.moveToFirst();
         String msgOut = c.getString(c.getColumnIndexOrThrow(QueuedMessageEntry.COLUMN_NAME_MESSAGE));
         assertEquals(msgIn, msgOut);
+
+        values = new ContentValues();
+
+        values.put(ConnectionLogEntry.COLUMN_NAME_CONN_TIME, System.currentTimeMillis());
+        values.put(ConnectionLogEntry.COLUMN_NAME_SUCCESS, 0);
+        values.put(ConnectionLogEntry.COLUMN_NAME_READING_COUNT, 5);
+
+        newRowId = db.insert(ConnectionLogEntry.TABLE_NAME, null, values);
+
+        assertTrue(newRowId > 0);
+
+        c = db.query(false, ConnectionLogEntry.TABLE_NAME, null, null, null, null, null, null, null);
+        c.moveToFirst();
+        int msgCount = c.getInt(c.getColumnIndexOrThrow(ConnectionLogEntry.COLUMN_NAME_READING_COUNT));
+        assertEquals(5, msgCount);
     }
 
     public void testWriteDelete() throws Exception {
