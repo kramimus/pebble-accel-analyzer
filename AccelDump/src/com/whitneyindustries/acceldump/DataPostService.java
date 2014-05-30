@@ -46,10 +46,13 @@ public class DataPostService extends IntentService {
         if (ip == null) {
             ip = "127.0.0.1";
         }
+        String username = intent.getStringExtra("username");
+        String password = intent.getStringExtra("password");
+
         String tzName = intent.getStringExtra("tz");
         final TimeZone tz = TimeZone.getTimeZone(tzName);
 
-        sender = new DbBackedAccelQueue(ip, this);
+        sender = new DbBackedAccelQueue(ip, username, password, this);
 
         mDataLogReceiver = new PebbleKit.PebbleDataLogReceiver(APP_UUID) {
             @Override

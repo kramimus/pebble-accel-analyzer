@@ -1,6 +1,7 @@
 package com.whitneyindustries.acceldump.util;
 
 import android.net.http.AndroidHttpClient;
+import android.util.Base64;
 import android.util.Log;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -32,8 +33,12 @@ public class JsonHttpClient {
     }
 
 
-    public Future<Boolean> post(final String ip, final String body) {
-        final HttpPost post = new HttpPost("http://" + ip + ":5000");
+    public Future<Boolean> post(final String ip, final String username, final String password, final String body) {
+        final HttpPost post = new HttpPost("https://" + ip + ":5000");
+        if (username != null && username != "" && password != null && password != "") {
+            String creds = Base64.encodeToString((username + ":" + password).getBytes(), Base64.NO_WRAP);
+            post.addHeader("Authorization", "Basic " + creds);
+        }
         return executor.submit(new Callable<Boolean>() {
                 public Boolean call() {
                     try {

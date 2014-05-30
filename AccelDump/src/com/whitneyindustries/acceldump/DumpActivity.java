@@ -32,27 +32,37 @@ public class DumpActivity extends Activity
     private AlarmManager alarmMgr;
     private PendingIntent alarmIntent;
     private EditText mIpField;
-    private Button mIpSave;
+    private EditText mUsername;
+    private EditText mPassword;
+    private Button mSave;
     private Button mSyncNow;
 
     private Spinner mTzSelector;
     private String selectedTz;
 
-    private OnClickListener mIpSaveListener = new OnClickListener() {
+    private OnClickListener mSaveListener = new OnClickListener() {
             public void onClick(View v) {
                 String ip = mIpField.getText().toString();
+                String username = mUsername.getText().toString();
+                String password = mPassword.getText().toString();
                 SharedPreferences.Editor editor = getPreferences(Context.MODE_PRIVATE).edit();
                 editor.putString(getString(R.string.server_ip), ip);
+                editor.putString("username", username);
+                editor.putString("password", password);
                 editor.commit();
-                updatePendingIntent(ip);
+                updatePendingIntent(ip, username, password);
             }
         };
 
     private OnClickListener mSyncListener = new OnClickListener() {
             public void onClick(View v) {
                 String ip = mIpField.getText().toString();
+                String username = mUsername.getText().toString();
+                String password = mPassword.getText().toString();
                 Intent intent = new Intent(DumpActivity.this, DataPostService.class);
                 intent.putExtra("server_ip", ip);
+                intent.putExtra("username", username);
+                intent.putExtra("password", password);
                 intent.putExtra("tz", selectedTz);
                 startService(intent);
             }
@@ -61,11 +71,13 @@ public class DumpActivity extends Activity
     private OnItemSelectedListener mTzListener = new OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 String ip = mIpField.getText().toString();
+                String username = mUsername.getText().toString();
+                String password = mPassword.getText().toString();
                 String selectedTz = (String)parent.getItemAtPosition(pos);
                 SharedPreferences.Editor editor = getPreferences(Context.MODE_PRIVATE).edit();
                 editor.putString(getString(R.string.tz), selectedTz);
                 editor.commit();
-                updatePendingIntent(ip);
+                updatePendingIntent(ip, username, password);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -78,10 +90,16 @@ public class DumpActivity extends Activity
         setContentView(R.layout.main);
 
         String ip = getPreferences(Context.MODE_PRIVATE).getString(getString(R.string.server_ip), "127.0.0.1");
+        String username = getPreferences(Context.MODE_PRIVATE).getString("username", "");
+        String password = getPreferences(Context.MODE_PRIVATE).getString("password", "");
         mIpField = (EditText)findViewById(R.id.ip_field);
         mIpField.setText(ip);
-        mIpSave = (Button)findViewById(R.id.ip_save);
-        mIpSave.setOnClickListener(mIpSaveListener);
+        mUsername = (EditText)findViewById(R.id.username);
+        mUsername.setText(username);
+        mPassword = (EditText)findViewById(R.id.password);
+        mPassword.setText(password);
+        mSave = (Button)findViewById(R.id.save);
+        mSave.setOnClickListener(mSaveListener);
 
         mSyncNow = (Button)findViewById(R.id.sync_now);
         mSyncNow.setOnClickListener(mSyncListener);
@@ -90,7 +108,7 @@ public class DumpActivity extends Activity
                                                                     "America/New_York");
         Log.d(TAG, selectedTz);
 
-        updatePendingIntent(ip);
+        updatePendingIntent(ip, username, password);
 
         mTzSelector = (Spinner)findViewById(R.id.tz_selector);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
@@ -113,10 +131,12 @@ public class DumpActivity extends Activity
         super.onSaveInstanceState(outState);
     }
 
-    private void updatePendingIntent(String ip) {
+    private void updatePendingIntent(String ip, String username, String password) {
         alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(this, DataPostReceiver.class);
         intent.putExtra("server_ip", ip);
+        intent.putExtra("username", username);
+        intent.putExtra("password", password);
         intent.putExtra("tz", selectedTz);
         alarmIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 

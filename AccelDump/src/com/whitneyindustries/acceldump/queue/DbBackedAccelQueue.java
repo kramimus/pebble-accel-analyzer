@@ -33,6 +33,8 @@ public class DbBackedAccelQueue implements SendQueue {
     final private static boolean SYNCHRONIZE_POSTS = true;
 
     final private String ip;
+    final private String username;
+    final private String password;
 
     private Queue<AccelData> toSend = new ConcurrentLinkedQueue<AccelData>();
     private Queue<Pair<String, Future<Boolean>>> pending = new ConcurrentLinkedQueue<Pair<String, Future<Boolean>>>();
@@ -40,8 +42,10 @@ public class DbBackedAccelQueue implements SendQueue {
     private JsonHttpClient httpClient;
     private Context context;
 
-    public DbBackedAccelQueue(String ip, Context context) {
+    public DbBackedAccelQueue(String ip, String username, String password, Context context) {
         this.ip = ip;
+        this.username = username;
+        this.password = password;
         this.context = context;
     }
 
@@ -91,7 +95,7 @@ public class DbBackedAccelQueue implements SendQueue {
         final String byteString = readingsJson.toString();
         Log.d(TAG, "Sending message with " + readingsSent + " readings");
         Date requestTime = new Date();
-        Future<Boolean> result = httpClient.post(ip, byteString);
+        Future<Boolean> result = httpClient.post(ip, username, password, byteString);
         if (SYNCHRONIZE_POSTS) {
             try {
                 boolean success = result.get(10, TimeUnit.SECONDS);
@@ -140,7 +144,7 @@ public class DbBackedAccelQueue implements SendQueue {
                 String msg = c.getString(c.getColumnIndexOrThrow(QueuedMessageEntry.COLUMN_NAME_MESSAGE));
                 long genTime = c.getLong(c.getColumnIndexOrThrow(QueuedMessageEntry.COLUMN_NAME_GEN_TIME));
 
-                Future<Boolean> result = httpClient.post(ip, msg);
+                Future<Boolean> result = httpClient.post(ip, username, password, msg);
                 pending.offer(new Pair<String, Future<Boolean>>(msg, result));
 
                 db.delete(QueuedMessageEntry.TABLE_NAME,
@@ -169,7 +173,7 @@ public class DbBackedAccelQueue implements SendQueue {
         int i = 0;
         while (pendingEntry != null) {
             try {
-                boolean success = pendingEntry.second.get(60, TimeUnit.SECONDS);
+                boolean success = pendingEntry.second.get(10, TimeUnit.SECONDS);
                 if (!success) {
                     Log.d(TAG, "posting reading bundle failed, going to save to DB for later xmit");
                     saveReadingToDb(pendingEntry.first, now, db);
